@@ -2,32 +2,36 @@
  * By- Veral Agarwal
  */
  #include<ESP8266WiFi.h>
- //#include<WiFi.h> // uncomment this for ESP32
+ //#include<WiFi.h> // uncomment this for ESP32 and comment ESP8266WiFI.h
  #include<Wire.h>
  #include<PubSubClient.h> //Library for MQTT
 
- #define LED 2 
- #define PIR 5 //Node mcu pin D2
+ #define LED 2 //In built LED
+ #define PIR 5 //Node mcu pin D1
 
  //Entering SSID and Password of your Hotspot
- const char* ssid= "JioFiber-RSBYD";
- const char* password="anilzz123";
+ const char* ssid= "YOUR_SSID";
+ const char* password="YOUR_PASSWORD";
 
 // Enter the ip adress of MQTT broker
-const char* mqtt_server="192.168.29.221"; 
-//const char* mqttuser="root";
-//const char* mqttpass="";
+const char* mqtt_server="MQTT_SERVER"; 
+const char* mqttuser="USER_MQTT"; //If Enabled
+const char* mqttpass="MQTT_PASSWORD";
 
-char* deviceID ="HELLO";
+char* deviceID ="DEVICE_ID";
 
 
- 
+ //Making Unique topic for Publishing and Subscribing  
 String deviceID1 = String(deviceID) + "/command";
-const char* device_IDx = deviceID1.c_str();
+const char* device_IDx = deviceID1.c_str(); //Converting from String to char
 String deviceID2 = String(deviceID) + "/status"; 
 const char* device_IDy = deviceID2.c_str();
 
+//Print both the topics
+Serial.println(device_IDx);
+Serial.println(device_IDy);
 
+//Wifi Client espClient
 WiFiClient espClient;
 PubSubClient client(espClient); //(deviceid/command)
 char msg[50];
@@ -38,22 +42,23 @@ int value=0;
 
 void setup()
 {
-  //beforesetup();
-
-  
   Serial.begin(9600);
   delay(500);
-  //PIR 
+ 
+  //------Defining the PIR Mode as INPUT-------------- 
   pinMode(PIR,INPUT);
   
   
   wificonnect();
-  client.setServer(mqtt_server,1883); //change the port to 1883 if not working on 1889
+  client.setServer(mqtt_server,1889); //change the port to 1883 if not working on 1889
   client.setCallback(callback);
+ 
   pinMode(LED,OUTPUT);
   digitalWrite(LED,LOW);
   
 }
+
+//--------Connecting to the WIFI-----------------
 
 void wificonnect()
 {
@@ -73,6 +78,8 @@ void wificonnect()
   Serial.println(WiFi.localIP());
 }
 
+//--------------------MQTT Message-----------------------
+
 void callback(char* topic,byte* message, unsigned int length){
   Serial.print("Message arrived on topic:");
   Serial.println(topic);
@@ -86,14 +93,14 @@ void callback(char* topic,byte* message, unsigned int length){
   }
   Serial.println();
        
-  if(String(topic) == device_IDx)  // deviceid/command     
+  if(String(topic) == device_IDx)  // if topic is deviceID/command     
   {
     if(messageTemp=="1")
     {
       Serial.println("Received 1");
       led_status[0] = 'O';
       led_status[1] = 'N';
-      Serial.println("LED ON"); // showing the status in serial monitor
+      Serial.println("LED ON"); // showing the status in Serial Monitor
       digitalWrite(LED,HIGH);
       loop();
       }
@@ -103,12 +110,14 @@ void callback(char* topic,byte* message, unsigned int length){
         led_status[0]='O';
         led_status[1]='F';
         led_status[2]='F';
-        Serial.println("LED OFF");
+        Serial.println("LED OFF"); //showing the Status in Serial Monitor
         digitalWrite(LED,LOW);
         loop();
       }
   }
 }
+
+//----------Connecting to the MQTT Server------------
 
 void reconnect()
   {
@@ -119,12 +128,7 @@ void reconnect()
       if(client.connect(deviceID))
     {
       Serial.println("Connection Established");
-
-      //For subscribe
-      //char* topic2; 
-      //deviceID1.toCharArray(topic2,20);
-      client.subscribe(device_IDx);
-      //client.publish("device_ID/debug","JTEQ SMART SYSTEM");
+       client.subscribe(device_IDx); //Subscribe to the topic deviceID/command
       
     } else {
       Serial.print("failed,rc=");
@@ -135,21 +139,19 @@ void reconnect()
   }
 }
 
+//--------------PIR (Motion Sensor)---------------
 void Pir()
 {
-  //String deviceID2 = String(deviceID) + "/status"; 
-//const char* device_IDy=deviceID2.c_str();
-
 long state=digitalRead(PIR);
   if(state==HIGH){
     delay(7000);
     Serial.println("Motion Sensor HIGH");
-    client.publish(device_IDy,"1");
+    client.publish(device_IDy,"1"); //publish "1" when th PIR sensor is HIGH to the topic deviceID/status
   }
   else { 
     delay(7000);
     Serial.println("Motion Sensor LOW");
-    client.publish(device_IDy,"0");
+    client.publish(device_IDy,"0"); //publish "0" When the PIR sensor is LOW to the topic deviceID/status
   }
 }
 
